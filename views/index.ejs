@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <title>minimal signal solution for webrtc</title>
+    <style>
+      video {
+        border: 2px solid #ccc;
+        padding: 10px
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row p-4">
+        <video id="offer" class="col-6" muted></video>
+        <video id="answer" class="col-6"></video>
+      </div>
+    </div>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="/js/bundle.js"></script>
+    <script src="/primus/primus.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script>
+    var queryString = require('query-string');
+var parsed = queryString.parse(location.search);
+var Peer = require('simple-peer');
+var p;
+var offerSignal = false;
+var answerSignal = false;
+var connect = false
+
+if (Peer.WEBRTC_SUPPORT) {
+  navigator.getUserMedia(
+    {video: true, audio: true},
+    function(stream) {
+      console.log('open usermedia..');
+
+      var offerVideo = document.querySelector('#offer');
+
+      try {
+        offerVideo.srcObject = stream;
+      } catch (error) {
+        offerVideo.src = window.URL.createObjectURL(stream);
+      }
+
+      offerVideo.play();
+
+      var code = prompt('room name')
+
+      if (code != null) {
+        var primus = Primus.connect();
+
+        primus.on('open', function() {
+          primus.write({action: 'join', room: code});
+
+          primus.on('data', function(message) {
+            switch (message.action) {
+              case 'users':
+              console.log(message)
+                if (message.data.length == 2) {
+                  primus.id(function(_id) {
+                    if (message.data.indexOf(_id) > -1) {
+                      switch (message.data.indexOf(_id)) {
+                        case 0:
+                          if (!p) {
+                            p = new Peer({
+                              initiator: false,
+                              trickle: false,
+                              stream: stream,
+                            });
+
+                            p.on('error', function(err) {
+                              p = undefined;
+                              answerSignal = false;
+                            });
+
+                            p.on('connect', function() {
+                              console.log('CONNECT');
+                              p.send('whatever' + Math.random());
+                            });
+
+                            p.on('data', function(data) {
+                              console.log('data: ' + data);
+                            });
+
+                            p.on('stream', function(stream) {
+                              console.log('stream start..');
+
+                              var video = document.querySelector('#answer');
+
+                              try {
+                                video.srcObject = stream;
+                              } catch (error) {
+                                video.src = window.URL.createObjectURL(stream);
+                              }
+
+                              video.play();
+                            });
+
+                            p.on('signal', function(data) {
+                              if (!answerSignal && data.type == 'answer') {
+                                primus.write({
+                                  action: 'answerSignal',
+                                  room: code,
+                                  signal: data,
+                                });
+
+                                answerSignal = true;
+                              }
+                            });
+                          }
+
+                          break;
+                        case 1:
+                          if (!p) {
+                            p = new Peer({
+                              initiator: true,
+                              trickle: false,
+                              stream: stream,
+                            });
+
+                            p.on('error', function(err) {
+                              p = undefined;
+                              offerSignal = false;
+                            });
+
+                            p.on('connect', function() {
+                              console.log('CONNECT');
+                              p.send('whatever' + Math.random());
+                            });
+
+                            p.on('data', function(data) {
+                              console.log('data: ' + data);
+                            });
+
+                            p.on('stream', function(stream) {
+                              console.log('stream start..');
+
+                              var video = document.querySelector('#answer');
+
+                              try {
+                                video.srcObject = stream;
+                              } catch (error) {
+                                video.src = window.URL.createObjectURL(stream);
+                              }
+
+                              video.play();
+                            });
+
+                            p.on('signal', function(data) {
+                              if (!offerSignal && data.type == 'offer') {
+                                console.log('offerSignal send..');
+                                primus.write({
+                                  action: 'offerSignal',
+                                  room: code,
+                                  signal: data,
+                                });
+
+                                offerSignal = true;
+                              }
+                            });
+                          }
+
+                          break;
+                        default:
+                      }
+                    }
+                  });
+                }
+
+                break;
+              case 'offerSignal':
+                if (!offerSignal && !connect) {
+                  p.signal(message.signal);
+                }
+
+                break;
+              case 'answerSignal':
+                if (!answerSignal && !connect) {
+                  p.signal(message.signal);
+                }
+
+                break;
+              case 'destroy':
+                if (p) {
+                  console.log('destroy connection..');
+                  p.destroy();
+
+                  p = undefined;
+                  offerSignal = false;
+                  answerSignal = false;
+
+                  var videoElement = document.getElementById('answer');
+                  videoElement.pause();
+                  videoElement.removeAttribute('src');
+                  videoElement.load();
+
+                  primus.write({action: 'leave', room: code});
+                  primus.write({action: 'join', room: code});
+                }
+
+                break;
+              default:
+            }
+          });
+        });
+      }
+
+    },
+    function() {},
+  );
+} else {
+  alert('your browser not support webrtc');
+}
+</script>
+  </body>
+</html>
