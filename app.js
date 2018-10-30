@@ -14,7 +14,7 @@ var app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
-app.get('/js/bundle.js', browserify(['simple-peer', 'query-string']));
+app.get('/js/bundle.js', browserify(['simple-peer', 'query-string', 'sweetalert2']));
 
 app.use(logger('dev'));
 app.use(express.json());

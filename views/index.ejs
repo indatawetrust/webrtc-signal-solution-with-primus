@@ -18,6 +18,10 @@
   <body>
     <div class="container p-2">
 <div class="alert alert-success room" role="alert">
+  <div class="form-group">
+    <label for="exampleInputEmail1">room link</label>
+    <input id="roomlink" type="text" class="form-control" readonly style="background-color:#fff">
+  </div>
 </div>
       <div class="row p-4">
         <video id="offer" class="col-6" muted></video>
@@ -38,7 +42,8 @@ var Peer = require('simple-peer');
 var p;
 var offerSignal = false;
 var answerSignal = false;
-var connect = false
+var connect = false;
+var swal = require('sweetalert2');
 
 if (Peer.WEBRTC_SUPPORT) {
   navigator.getUserMedia(
@@ -54,16 +59,9 @@ if (Peer.WEBRTC_SUPPORT) {
         offerVideo.src = window.URL.createObjectURL(stream);
       }
 
-      offerVideo.play();
-      var code = null
-      if (parsed.code) {
-	code = parsed.code
-      } else {
-      	code = prompt('room name')
-      }
+      var start = function(code) {
+        $('#roomlink').val('https://pictureddit.com/webrtc?code=' + code);
 
-      if (code != null) {
-	$('.room').text('#' + code)
         var primus = Primus.connect();
 
         primus.on('open', function() {
@@ -72,7 +70,7 @@ if (Peer.WEBRTC_SUPPORT) {
           primus.on('data', function(message) {
             switch (message.action) {
               case 'users':
-              console.log(message)
+                console.log(message);
                 if (message.data.length == 2) {
                   primus.id(function(_id) {
                     if (message.data.indexOf(_id) > -1) {
@@ -107,7 +105,9 @@ if (Peer.WEBRTC_SUPPORT) {
                               try {
                                 video.srcObject = stream;
                               } catch (error) {
-                                video.src = window.URL.createObjectURL(stream);
+                                video.src = window.URL.createObjectURL(
+                                  stream,
+                                );
                               }
 
                               video.play();
@@ -157,7 +157,9 @@ if (Peer.WEBRTC_SUPPORT) {
                               try {
                                 video.srcObject = stream;
                               } catch (error) {
-                                video.src = window.URL.createObjectURL(stream);
+                                video.src = window.URL.createObjectURL(
+                                  stream,
+                                );
                               }
 
                               video.play();
@@ -222,6 +224,29 @@ if (Peer.WEBRTC_SUPPORT) {
         });
       }
 
+      offerVideo.play();
+      var code = null;
+      if (parsed.code) {
+        code = parsed.code;
+
+        start(code);
+      } else {
+        swal({
+          title: 'Enter your room name',
+          input: 'text',
+          showCancelButton: true,
+          inputValidator: value => {
+            return !value && 'You need to write something!';
+          },
+          backdrop: false,
+        }).then(function(data) {
+          code = data.value;
+
+          if (code != null) {
+            start(code);
+          }
+        });
+      }
     },
     function() {},
   );

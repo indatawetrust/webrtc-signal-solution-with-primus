@@ -2298,6 +2298,10 @@ subarg@^1.0.0:
   dependencies:
     minimist "^1.1.0"
 
+sweetalert2@^7.28.11:
+  version "7.28.11"
+  resolved "https://registry.yarnpkg.com/sweetalert2/-/sweetalert2-7.28.11.tgz#a4f3ef54f28a76f3cbbf8c963c8bc0a03a55208e"
+
 syntax-error@^1.1.1:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/syntax-error/-/syntax-error-1.4.0.tgz#2d9d4ff5c064acb711594a3e3b95054ad51d907c"

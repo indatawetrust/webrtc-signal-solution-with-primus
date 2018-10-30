@@ -17,6 +17,7 @@
     "primus-rooms": "^3.4.1",
     "query-string": "^6.2.0",
     "simple-peer": "^9.1.2",
+    "sweetalert2": "^7.28.11",
     "ws": "^6.1.0"
   }
 }
